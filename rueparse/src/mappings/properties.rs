@@ -4,33 +4,38 @@ use crate::{
     mappings::TypeMappings,
     readers::{FUsmapReader, Reader},
 };
-use once_cell::sync::Lazy;
+use once_cell::sync::OnceCell;
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Struct {
-    pub context: Option<Rc<TypeMappings>>,
+    pub context: Option<Rc<RefCell<TypeMappings>>>,
     pub name: String,
     pub super_type: Option<String>,
     pub properties: HashMap<i32, PropertyInfo>,
     pub property_count: i32,
-    pub super_struct: Lazy<Option<Rc<Struct>>>,
+    pub super_struct: OnceCell<Option<Box<Struct>>>,
 }
 
 impl Struct {
-    pub fn new(context: Option<Rc<TypeMappings>>, name: String, property_count: i32) -> Self {
+    pub fn new(
+        context: Option<Rc<RefCell<TypeMappings>>>,
+        name: String,
+        property_count: i32,
+    ) -> Self {
         Struct {
             context,
             name,
             super_type: None,
             properties: HashMap::new(),
             property_count,
-            super_struct: Lazy::new(|| None),
+            super_struct: OnceCell::new(),
         }
     }
     pub fn new_with_super(
-        context: Option<Rc<TypeMappings>>,
+        context: Option<Rc<RefCell<TypeMappings>>>,
         name: String,
         super_type: Option<String>,
         properties: HashMap<i32, PropertyInfo>,
@@ -42,25 +47,26 @@ impl Struct {
             super_type,
             properties,
             property_count,
-            super_struct: Lazy::new(match (&context, &super_type) {
-                (Some(ctx), Some(super_name)) => ctx.types.get(super_name).cloned(),
-                _ => None,
-            }),
+            super_struct: OnceCell::new(),
         }
     }
+
     pub fn init_super(&self) {
-        let value = if let (Some(super_type_str), Some(context_inner)) =
-            (&self.super_type, &self.context)
-        {
-            context_inner.types.get(super_type_str.as_str()).cloned()
-        } else {
-            None
-        };
-        self.super_struct.set(v)
+        self.super_struct
+            .get_or_init(|| match (&self.context, &self.super_type) {
+                (Some(ctx), Some(super_name)) => ctx
+                    .borrow_mut()
+                    .types
+                    .borrow_mut()
+                    .get(super_name)
+                    .cloned()
+                    .map(|s| s.clone()),
+                _ => None,
+            });
     }
 
     pub fn parse(
-        context: Option<&'a TypeMappings>,
+        context: Option<Rc<RefCell<TypeMappings>>>,
         reader: &mut FUsmapReader,
         name_lut: &Vec<String>,
     ) -> Self {
@@ -80,7 +86,10 @@ impl Struct {
                 properties.insert(prop_info.index + i as i32, clone);
             }
         }
-        Self {}
+        let new_super =
+            Struct::new_with_super(context, name, super_type, properties, property_count as i32);
+        new_super.init_super();
+        new_super
     }
 }
 

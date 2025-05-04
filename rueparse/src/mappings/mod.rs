@@ -6,10 +6,10 @@ use brotli;
 use byteorder::{LittleEndian, ReadBytesExt};
 use compression::EUsmapCompressionMethod;
 use oodle_safe;
+use std::cell::RefCell;
 use std::collections::HashMap;
-use std::convert;
-use std::io::Cursor;
-use std::io::{self, Read, Seek};
+use std::fs::File;
+use std::io::{self, Cursor, Read, Result};
 use std::rc::Rc;
 
 mod compression;
@@ -17,20 +17,40 @@ mod epropertytype;
 mod properties;
 mod version;
 
-pub use compression::*;
 pub use epropertytype::*;
 pub use properties::*;
 pub use version::*;
 
+pub struct UsmapProvider {
+    pub mappings_for_game: TypeMappings,
+}
+
+impl UsmapProvider {
+    pub fn from_path(path: &str) -> Result<Self> {
+        let file = match File::open(path) {
+            Ok(f) => f,
+            Err(e) => return Err(e),
+        };
+        let mut reader = FileReader::new(file);
+        let usmap = match UsmapParser::from_reader(&mut reader) {
+            Ok(u) => u,
+            Err(e) => return Err(e),
+        };
+        Ok(Self {
+            mappings_for_game: usmap.mappings,
+        })
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct TypeMappings {
-    pub types: HashMap<String, Rc<Struct>>,
-    pub enums: HashMap<String, HashMap<i32, String>>,
+    pub types: Rc<RefCell<HashMap<String, Box<Struct>>>>,
+    pub enums: Rc<RefCell<HashMap<String, HashMap<i32, String>>>>,
 }
 impl TypeMappings {
     pub fn new(
-        types: HashMap<String, Rc<Struct>>,
-        enums: HashMap<String, HashMap<i32, String>>,
+        types: Rc<RefCell<HashMap<String, Box<Struct>>>>,
+        enums: Rc<RefCell<HashMap<String, HashMap<i32, String>>>>,
     ) -> Self {
         Self { types, enums }
     }
@@ -42,6 +62,7 @@ pub struct UsmapParser {
     package_version: FPackageFileVersion,
     compression_method: EUsmapCompressionMethod,
     custom_versions: FCustomVersionContainer,
+    mappings: TypeMappings,
     netcl: u32,
 }
 
@@ -53,6 +74,7 @@ fn decompress_brotli(
     decompressor.read_to_end(decompressed_buffer)?;
     Ok(())
 }
+
 impl UsmapParser {
     pub fn from_reader(reader: &mut dyn Reader) -> io::Result<Self> {
         const EXPECTED_MAGIC: u16 = 0x30C4;
@@ -150,7 +172,8 @@ impl UsmapParser {
         }
 
         let enum_count: u32 = reader.read_u32()?;
-        let mut enums: HashMap<String, HashMap<i32, String>> = HashMap::new();
+        let enums: Rc<RefCell<HashMap<String, HashMap<i32, String>>>> =
+            Rc::new(RefCell::new(HashMap::new()));
         for _ in 0..enum_count {
             let enum_name = reader.read_name(&name_lut);
 
@@ -166,7 +189,20 @@ impl UsmapParser {
             for i in 0..enum_names_length {
                 enum_names.insert(i as i32, reader.read_name(&name_lut));
             }
-            enums.insert(enum_name, enum_names);
+            enums.borrow_mut().insert(enum_name, enum_names);
+        }
+
+        let struct_count: u32 = reader.read_u32()?;
+        let structs: Rc<RefCell<HashMap<String, Box<Struct>>>> =
+            Rc::new(RefCell::new(HashMap::with_capacity(struct_count as usize)));
+        let mappings: Rc<RefCell<TypeMappings>> = Rc::new(RefCell::new(TypeMappings::new(
+            Rc::clone(&structs),
+            Rc::clone(&enums),
+        )));
+
+        for _ in 0..struct_count {
+            let s = Struct::parse(Some(Rc::clone(&mappings)), &mut reader, &name_lut);
+            structs.borrow_mut().insert(s.name.clone(), Box::new(s));
         }
 
         Ok(Self {
@@ -175,6 +211,7 @@ impl UsmapParser {
             package_version,
             compression_method,
             custom_versions,
+            mappings: mappings.borrow_mut().clone(),
             netcl,
         })
     }

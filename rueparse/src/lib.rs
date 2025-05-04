@@ -35,7 +35,10 @@ impl UEParse {
 
 #[cfg(test)]
 mod tests {
-    use crate::readers::{FIoStoreTocHeader, FileReader};
+    use crate::{
+        mappings::UsmapProvider,
+        readers::{FIoStoreTocHeader, FileReader},
+    };
     use std::fs::File;
 
     #[test]
@@ -53,5 +56,9 @@ mod tests {
         };
         println!("{:?}", header);
         println!("{}", header.encryption_key_guid.to_hex());
+
+        let usmap_path = "/Users/meszmate/RUEParser/resources/mappings.usmap";
+        let usmap = UsmapProvider::from_path(&usmap_path).unwrap();
+        println!("{:?}", usmap.mappings_for_game)
     }
 }
