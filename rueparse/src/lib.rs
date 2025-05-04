@@ -1,13 +1,13 @@
-mod aes;
-mod reader;
+mod compression;
+mod errors;
+mod mappings;
+mod models;
+mod objects;
+mod readers;
 use std::collections::HashMap;
 
-use aes::FAesKey;
 use hex::FromHexError;
-use reader::FGuid;
-use std::fs::File;
-use std::io::{self, Read};
-use std::path::Path;
+use models::{FAesKey, FGuid};
 
 pub struct UEParse {
     pub keys: HashMap<FGuid, FAesKey>,
@@ -35,9 +35,8 @@ impl UEParse {
 
 #[cfg(test)]
 mod tests {
-    use crate::{aes::FAesKey, reader::FIoStoreTocHeader};
-
-    use super::*;
+    use crate::readers::FIoStoreTocHeader;
+    use std::fs::File;
 
     #[test]
     fn it_works() {

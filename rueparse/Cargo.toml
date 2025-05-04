@@ -6,3 +6,7 @@ edition = "2024"
 [dependencies]
 hex = "0.4"
 byteorder = "1.5"
+oodle-safe = "0.2.0"
+libloading = "0.8"
+brotli = "8.0.0"
+zstd = "0.13.3"
