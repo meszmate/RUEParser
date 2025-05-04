@@ -1,62 +1,39 @@
+use crate::models::FGuid;
+use crate::readers::FUsmapReader;
+use crate::readers::FileReader;
+use crate::readers::Reader;
+use brotli;
 use byteorder::{LittleEndian, ReadBytesExt};
 use compression::EUsmapCompressionMethod;
-use crate::readers::FUsmapReader;
-use std::io::{self, Read, Seek};
-mod compression;
-mod version;
-use crate::models::{FGuid, Reader};
-use brotli;
 use oodle_safe;
 use std::collections::HashMap;
 use std::convert;
 use std::io::Cursor;
-pub use version::*;
-pub mod struct;
+use std::io::{self, Read, Seek};
+use std::rc::Rc;
 
+mod compression;
+mod epropertytype;
+mod properties;
+mod version;
+
+pub use compression::*;
+pub use epropertytype::*;
+pub use properties::*;
+pub use version::*;
+
+#[derive(Debug, Clone)]
 pub struct TypeMappings {
-    pub types: HashMap<String, MappingsStruct>,
+    pub types: HashMap<String, Rc<Struct>>,
     pub enums: HashMap<String, HashMap<i32, String>>,
 }
 impl TypeMappings {
     pub fn new(
-        types: HashMap<String, MappingsStruct>,
+        types: HashMap<String, Rc<Struct>>,
         enums: HashMap<String, HashMap<i32, String>>,
     ) -> Self {
         Self { types, enums }
     }
-}
-
-pub struct MappingsStruct {
-    context: Option<TypeMappings>,
-    pub name: String,
-    pub super_type: String,
-}
-impl MappingsStruct {
-    pub fn new(mappings: TypeMappings, reader: FUsmapReader, name_lut: &Vec<String>) -> Self {
-        let name = reader.read_name(name_lut);
-        let super_type = reader.read_name(name_lut);
-
-        let property_count: u16 = reader.read_u16().unwrap();
-        let serializable_property_count: u16 = reader.read_u16().unwrap();
-        let properties: HashMap<i32, PropertyInfo>;
-    }
-}
-
-pub struct PropertyInfo {
-    pub index: i32,
-    pub name: String,
-    pub array_size: Option<i32>,
-    pub mapping_type: PropertyType,
-}
-pub struct PropertyType {
-    pub p_type: String,
-    pub struct_type: Option<String>,
-    pub inner_type: Option<PropertyType>,
-    pub value_type: Option<PropertyType>,
-    pub enum_name: Option<String>,
-    pub is_enum_as_byte: Option<bool>,
-    pub bool: Option<bool>,
-
 }
 
 pub struct UsmapParser {
@@ -77,7 +54,7 @@ fn decompress_brotli(
     Ok(())
 }
 impl UsmapParser {
-    pub fn from_reader<R: Read + Seek>(reader: &mut Reader<R>) -> io::Result<Self> {
+    pub fn from_reader(reader: &mut dyn Reader) -> io::Result<Self> {
         const EXPECTED_MAGIC: u16 = 0x30C4;
         let magic: u16 = reader.read_u16()?;
         if EXPECTED_MAGIC != magic {

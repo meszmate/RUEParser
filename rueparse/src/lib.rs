@@ -35,18 +35,19 @@ impl UEParse {
 
 #[cfg(test)]
 mod tests {
-    use crate::readers::FIoStoreTocHeader;
+    use crate::readers::{FIoStoreTocHeader, FileReader};
     use std::fs::File;
 
     #[test]
     fn it_works() {
         let path = "/Volumes/DELIVERZ/Paks/pakchunk1001-WindowsClient.utoc";
-        let mut file = match File::open(path) {
+        let file = match File::open(path) {
             Ok(f) => f,
             Err(e) => panic!("Failed to open file {}: {}", path, e),
         };
+        let mut reader = FileReader::new(file);
 
-        let header = match FIoStoreTocHeader::from_reader(&mut file) {
+        let header = match FIoStoreTocHeader::from_reader(&mut reader) {
             Ok(h) => h,
             Err(e) => panic!("failed to read header: {}", e),
         };

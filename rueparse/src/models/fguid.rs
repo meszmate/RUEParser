@@ -1,3 +1,7 @@
+use crate::readers::Reader;
+use std::fmt;
+use std::io;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct FGuid {
     pub a: u32,
@@ -35,7 +39,7 @@ impl FGuid {
             d,
         })
     }
-    pub fn from_reader<R: Read + Seek>(reader: &mut Reader<R>) -> io::Result<Self> {
+    pub fn from_reader(reader: &mut dyn Reader) -> io::Result<Self> {
         Ok(Self {
             a: reader.read_u32()?,
             b: reader.read_u32()?,

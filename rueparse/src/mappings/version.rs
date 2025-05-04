@@ -1,6 +1,7 @@
 use std::io::{self, Read, Seek};
 
-use crate::reader::{FGuid, Reader};
+use crate::models::FGuid;
+use crate::readers::Reader;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EUsmapVersion {
@@ -32,7 +33,7 @@ pub struct FPackageFileVersion {
 }
 
 impl FPackageFileVersion {
-    pub fn from_reader<R: Read + Seek>(reader: &mut Reader<R>) -> io::Result<Self> {
+    pub fn from_reader(reader: &mut dyn Reader) -> io::Result<Self> {
         let file_version_ue4 = reader.read_i32()?;
         let file_version_ue5 = reader.read_i32()?;
         Ok(Self {
@@ -65,7 +66,7 @@ pub struct FCustomVersion {
     pub version: i32,
 }
 impl FCustomVersion {
-    pub fn from_reader<R: Read + Seek>(reader: &mut Reader<R>) -> io::Result<Self> {
+    pub fn from_reader(reader: &mut dyn Reader) -> io::Result<Self> {
         Ok(Self {
             key: FGuid::from_reader(reader)?,
             version: reader.read_i32()?,
@@ -77,11 +78,11 @@ pub struct FCustomVersionContainer {
     pub versions: Vec<FCustomVersion>,
 }
 impl FCustomVersionContainer {
-    pub fn new<R: Read + Seek>(
-        reader: &mut Reader<R>,
+    pub fn new(
+        reader: &mut dyn Reader,
         format: Option<ECustomVersionSerializationFormat>,
     ) -> io::Result<Self> {
-        let f = format.unwrap_or(ECUSTOMVERSIONSERIALIZATIONFORMAT_LATEST);
+        let f = format.unwrap_or(ECustomVersionSerializationFormat::LATEST);
         match f {
             ECustomVersionSerializationFormat::Optimized => {
                 let length = reader.read_i32()?;
