@@ -1,5 +1,6 @@
 mod compression;
 mod errors;
+mod fileprovider;
 mod mappings;
 mod models;
 mod objects;
