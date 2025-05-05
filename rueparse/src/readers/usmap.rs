@@ -3,6 +3,7 @@ use std::io::{self, Cursor, Read, Seek, SeekFrom};
 
 use super::Reader;
 use crate::mappings::EUsmapVersion;
+
 pub struct FUsmapReader<'a> {
     cursor: Cursor<&'a [u8]>,
     pub version: EUsmapVersion,
@@ -59,7 +60,7 @@ impl<'a> Reader for FUsmapReader<'a> {
     }
 
     fn read_bool(&mut self) -> io::Result<bool> {
-        match self.read_u8() {
+        match self.read_i32() {
             Ok(u) => match u {
                 0 => return Ok(false),
                 1 => return Ok(true),

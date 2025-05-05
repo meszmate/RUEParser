@@ -51,7 +51,7 @@ impl Struct {
         }
     }
 
-    pub fn init_super(&self) {
+    pub fn init_super(&mut self) {
         self.super_struct
             .get_or_init(|| match (&self.context, &self.super_type) {
                 (Some(ctx), Some(super_name)) => ctx
@@ -59,10 +59,10 @@ impl Struct {
                     .types
                     .borrow_mut()
                     .get(super_name)
-                    .cloned()
                     .map(|s| s.clone()),
                 _ => None,
             });
+        self.context = None; // To prevent infinity loop
     }
 
     pub fn parse(
@@ -77,7 +77,6 @@ impl Struct {
         let serializable_property_count: u16 = reader.read_u16().unwrap();
 
         let mut properties = HashMap::new();
-
         for _ in 0..serializable_property_count {
             let prop_info: PropertyInfo = PropertyInfo::parse(reader, &name_lut);
             for i in 0..prop_info.array_size.unwrap_or(0) {
@@ -86,7 +85,7 @@ impl Struct {
                 properties.insert(prop_info.index + i as i32, clone);
             }
         }
-        let new_super =
+        let mut new_super =
             Struct::new_with_super(context, name, super_type, properties, property_count as i32);
         new_super.init_super();
         new_super
@@ -118,8 +117,8 @@ impl PropertyInfo {
     pub fn parse(reader: &mut FUsmapReader, name_lut: &Vec<String>) -> Self {
         let index: u16 = reader.read_u16().unwrap();
         let arraydim: u8 = reader.read_u8().unwrap();
-        let name: String = reader.read_name(name_lut);
-        let p_type: PropertyType = PropertyType::parse(reader, name_lut);
+        let name: String = reader.read_name(&name_lut);
+        let p_type: PropertyType = PropertyType::parse(reader, &name_lut);
         PropertyInfo::new(index as i32, name, p_type, Some(arraydim))
     }
 }
@@ -171,10 +170,10 @@ impl PropertyType {
         match type_enum {
             EPropertyType::EnumProperty => {
                 inner_type = Some(Box::new(PropertyType::parse(reader, &name_lut)));
-                enum_name = Some(reader.read_name(name_lut));
+                enum_name = Some(reader.read_name(&name_lut));
             }
             EPropertyType::StructProperty => {
-                struct_type = Some(reader.read_name(name_lut));
+                struct_type = Some(reader.read_name(&name_lut));
             }
             EPropertyType::SetProperty
             | EPropertyType::ArrayProperty

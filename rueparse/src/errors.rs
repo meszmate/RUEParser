@@ -1,1 +1,5 @@
-pub enum error {}
+use std::io;
+
+pub enum Error {
+    ReadError(io::Error),
+}

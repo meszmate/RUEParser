@@ -46,7 +46,7 @@ impl<R: Read + Seek> Reader for FileReader<R> {
     }
 
     fn read_bool(&mut self) -> io::Result<bool> {
-        match self.read_u8() {
+        match self.read_i32() {
             Ok(u) => match u {
                 0 => return Ok(false),
                 1 => return Ok(true),
