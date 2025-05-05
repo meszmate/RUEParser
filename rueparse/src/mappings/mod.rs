@@ -5,7 +5,7 @@ use crate::readers::Reader;
 use brotli;
 use byteorder::{LittleEndian, ReadBytesExt};
 use compression::EUsmapCompressionMethod;
-use oodle_safe;
+use oodle;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fs::File;
@@ -130,7 +130,7 @@ impl UsmapParser {
             EUsmapCompressionMethod::Oodle => {
                 let mut comp_bytes = vec![0u8; comp_size as usize];
                 reader.read_exact(&mut comp_bytes[..comp_size as usize])?;
-                oodle_safe::decompress(&comp_bytes, &mut data, None, None, None, None);
+                oodle::decompress(&comp_bytes, &mut data, false, 0);
             }
             EUsmapCompressionMethod::Brotli => {
                 let mut comp_bytes = vec![0u8; comp_size as usize];
