@@ -8,8 +8,9 @@ mod readers;
 
 use mappings::UsmapProvider;
 use oodle::Oodle;
-use std::collections::HashMap;
+use std::{collections::HashMap, fs, io, path::Path};
 
+use fileprovider::objects::GameFile;
 use hex::FromHexError;
 use models::{FAesKey, FGuid};
 
@@ -18,6 +19,11 @@ pub struct UEParse {
     pub oodle: Option<Oodle>,
     pub keys: HashMap<FGuid, FAesKey>,
     pub path: String,
+}
+
+pub enum SearchOption {
+    TopDirectoryOnly,
+    AllDirectories,
 }
 
 impl UEParse {
@@ -29,6 +35,7 @@ impl UEParse {
             path: String::from(path),
         }
     }
+
     pub fn init_oodle(&mut self, path: &str) -> Result<(), oodle::Error> {
         self.oodle.insert(match Oodle::load(path) {
             Ok(o) => o,
@@ -50,6 +57,58 @@ impl UEParse {
     }
     pub fn remove_key(&mut self, guid: &FGuid) -> Option<FAesKey> {
         self.keys.remove(guid)
+    }
+
+    fn iterate_files(
+        directory: &Path,
+        recursive: bool,
+    ) -> Result<HashMap<String, GameFile>, io::Error> {
+        let mut os_files: HashMap<String, GameFile> = HashMap::new();
+        if !directory.exists() || !directory.is_dir() {
+            return Ok(os_files);
+        }
+
+        let uproject = fs::read_dir(directory).ok().and_then(|entries| {
+            entries.filter_map(Result::ok).find(|entry| {
+                entry.path().is_file()
+                    && entry.path().extension().and_then(|e| e.to_str()) == Some("uproject")
+            })
+        });
+
+        let mount_point = if let Some(ref entry) = uproject {
+            entry
+                .path()
+                .file_stem()
+                .map(|s| format!("{}/", s.to_string_lossy()))
+                .unwrap_or_else(|| "Unknown/".to_string())
+        } else {
+            directory
+                .file_name()
+                .map(|s| format!("{}/", s.to_string_lossy()))
+                .unwrap_or_else(|| "Unknown/".to_string())
+        };
+
+        let should_recurse = uproject.is_some() || recursive;
+
+        let entries = if should_recurse {
+            walkdir::WalkDir::new(directory)
+                .into_iter()
+                .filter_map(Result::ok)
+                .filter(|e| e.file_type().is_file())
+                .map(|e| e.path().to_path_buf())
+                .collect::<Vec<_>>()
+        } else {
+            match fs::read_dir(directory) {
+                Ok(read_dir) => read_dir
+                    .filter_map(Result::ok)
+                    .filter(|e| e.path().is_file())
+                    .map(|e| e.path())
+                    .collect(),
+                Err(e) => return Err(e),
+            }
+        };
+
+        Ok(os_files)
     }
 }
 
