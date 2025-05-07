@@ -1,3 +1,4 @@
+pub mod assets;
 mod compression;
 mod errors;
 mod fileprovider;
@@ -5,6 +6,7 @@ mod mappings;
 mod models;
 mod objects;
 mod readers;
+mod versions;
 
 use mappings::UsmapProvider;
 use oodle::Oodle;
@@ -13,6 +15,7 @@ use std::{collections::HashMap, fs, io, path::Path};
 use fileprovider::objects::GameFile;
 use hex::FromHexError;
 use models::{FAesKey, FGuid};
+pub use versions::*;
 
 pub struct UEParse {
     pub mappings: Option<UsmapProvider>,
@@ -107,8 +110,7 @@ impl UEParse {
                 Err(e) => return Err(e),
             }
         };
-
-        Ok(os_files)
+        // EGame::Ok(os_files)
     }
 }
 

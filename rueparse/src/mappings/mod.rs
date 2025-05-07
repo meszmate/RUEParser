@@ -12,6 +12,8 @@ use std::io::{self, Cursor, Read};
 use std::rc::Rc;
 use std::string::FromUtf8Error;
 
+use crate::objects::core::serialization::FCustomVersionContainer;
+
 mod compression;
 mod epropertytype;
 mod properties;

@@ -1,3 +1,4 @@
+pub mod core;
 mod ffield;
 mod fname;
 mod fnameentryserialized;
