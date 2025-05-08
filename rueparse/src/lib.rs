@@ -10,9 +10,10 @@ mod versions;
 
 use mappings::UsmapProvider;
 use oodle::Oodle;
+use std::io;
 use std::{collections::HashMap, fs, io, path::Path};
 
-use fileprovider::objects::GameFile;
+use fileprovider::objects::{DirectoryInfo, FileInfo, GameFile, OsGameFile};
 use hex::FromHexError;
 use models::{FAesKey, FGuid};
 pub use versions::*;
@@ -21,22 +22,20 @@ pub struct UEParse {
     pub mappings: Option<UsmapProvider>,
     pub oodle: Option<Oodle>,
     pub keys: HashMap<FGuid, FAesKey>,
-    pub path: String,
-}
-
-pub enum SearchOption {
-    TopDirectoryOnly,
-    AllDirectories,
+    pub working_directory: DirectoryInfo,
 }
 
 impl UEParse {
-    pub fn new(path: &str) -> UEParse {
-        UEParse {
+    pub fn new(path: &str) -> io::Result<UEParse> {
+        Ok(UEParse {
             mappings: None,
             oodle: None,
             keys: HashMap::new(),
-            path: String::from(path),
-        }
+            working_directory: match DirectoryInfo::new(&path) {
+                Ok(d) => d,
+                Err(e) => return Err(e),
+            },
+        })
     }
 
     pub fn init_oodle(&mut self, path: &str) -> Result<(), oodle::Error> {
@@ -63,10 +62,11 @@ impl UEParse {
     }
 
     fn iterate_files(
+        &mut self,
         directory: &Path,
         recursive: bool,
-    ) -> Result<HashMap<String, GameFile>, io::Error> {
-        let mut os_files: HashMap<String, GameFile> = HashMap::new();
+    ) -> Result<HashMap<String, OsGameFile>, io::Error> {
+        let mut os_files: HashMap<String, OsGameFile> = HashMap::new();
         if !directory.exists() || !directory.is_dir() {
             return Ok(os_files);
         }
@@ -110,7 +110,23 @@ impl UEParse {
                 Err(e) => return Err(e),
             }
         };
-        // EGame::Ok(os_files)
+        for file in entries {
+            match file.to_str() {
+                Some(f) => {
+                    os_files.insert(
+                        f.to_string(),
+                        OsGameFile::new(
+                            self.working_directory,
+                            FileInfo::new(&f),
+                            mount_point,
+                            versions,
+                        ),
+                    );
+                }
+                None => {}
+            }
+        }
+        Ok(os_files)
     }
 }
 

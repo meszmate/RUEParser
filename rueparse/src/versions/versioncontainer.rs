@@ -6,17 +6,17 @@ use crate::objects::core::serialization::FCustomVersionContainer;
 
 #[derive(Debug)]
 pub struct VersionContainer {
-    pub game: EGame,
+    game: EGame,
     ver: FPackageFileVersion,
-    pub platform: ETexturePlatform,
+    platform: ETexturePlatform,
     pub b_explicit_ver: bool,
 
     pub custom_versions: Option<FCustomVersionContainer>,
     pub options: HashMap<String, bool>,
-    pub mapstruct_types: HashMap<String, HashMap<String, String>>,
+    pub mapstruct_types: HashMap<String, (String, Option<String>)>,
 
-    pub option_overrides: Option<HashMap<String, bool>>,
-    pub mapstruct_overrides: Option<HashMap<String, HashMap<String, String>>>,
+    option_overrides: Option<HashMap<String, bool>>,
+    mapstruct_overrides: Option<HashMap<String, (String, Option<String>)>>,
 }
 
 impl VersionContainer {
@@ -26,7 +26,7 @@ impl VersionContainer {
         ver: Option<FPackageFileVersion>,
         custom_versions: Option<FCustomVersionContainer>,
         option_overrides: Option<HashMap<String, bool>>,
-        mapstruct_overrides: Option<HashMap<String, HashMap<String, String>>>,
+        mapstruct_overrides: Option<HashMap<String, (String, Option<String>)>>,
     ) -> Self {
         let game = game.unwrap_or(EGame::GAME_UE4_LATEST);
         let platform = platform.unwrap_or(ETexturePlatform::DesktopMobile);
@@ -36,9 +36,19 @@ impl VersionContainer {
             game,
             platform,
             ver,
+            custom_versions,
+            b_explicit_ver: false,
+            mapstruct_types: HashMap::new(),
+            options: HashMap::new(),
             option_overrides,
             mapstruct_overrides,
         }
+    }
+
+    pub fn get_game(&mut self) -> &EGame {
+        self.init_options();
+        self.init_map_struct_types();
+        &self.game
     }
 
     pub fn get_ver(&mut self) -> &FPackageFileVersion {
@@ -48,6 +58,13 @@ impl VersionContainer {
         }
         &self.ver
     }
+
+    pub fn get_platform(&mut self) -> &ETexturePlatform {
+        self.init_options();
+        self.init_map_struct_types();
+        &self.platform
+    }
+
     fn init_options(&mut self) {
         self.options.clear();
 
@@ -152,6 +169,50 @@ impl VersionContainer {
     fn init_map_struct_types(&mut self) {
         self.mapstruct_types.clear();
 
-        // self.mapstruct_types.insert(String::from("BindingIdToReferences"), )
+        self.mapstruct_types.insert(
+            String::from("BindingIdToReferences"),
+            (String::from("Guid"), None),
+        );
+        self.mapstruct_types.insert(
+            String::from("UserParameterRedirects"),
+            (
+                String::from("NiagaraVariable"),
+                Some(String::from("NiagaraVariable")),
+            ),
+        );
+        self.mapstruct_types.insert(
+            String::from("Tracks"),
+            (String::from("MovieSceneTrackIdentifier"), None),
+        );
+        self.mapstruct_types.insert(
+            String::from("SubSequences"),
+            (String::from("MovieSceneSequenceID"), None),
+        );
+        self.mapstruct_types.insert(
+            String::from("Hierarchy"),
+            (String::from("MovieSceneSequenceID"), None),
+        );
+        self.mapstruct_types.insert(
+            String::from("TrackSignatureToTrackIdentifier"),
+            (
+                String::from("Guid"),
+                Some(String::from("MovieSceneTrackIdentifier")),
+            ),
+        );
+        self.mapstruct_types.insert(
+            String::from("UserParameterRedirects"),
+            (
+                String::from("NiagaraVariable"),
+                Some(String::from("NiagaraVariable")),
+            ),
+        );
+        match &self.mapstruct_overrides {
+            Some(o) => {
+                for (k, v) in o {
+                    self.mapstruct_types.insert(k.clone(), v.clone());
+                }
+            }
+            None => return,
+        }
     }
 }
