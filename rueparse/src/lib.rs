@@ -1,17 +1,18 @@
 pub mod assets;
-mod compression;
+pub mod compression;
 mod errors;
-mod fileprovider;
-mod mappings;
-mod models;
-mod objects;
-mod readers;
-mod versions;
+pub mod fileprovider;
+pub mod mappings;
+pub mod models;
+pub mod objects;
+pub mod readers;
+pub mod ue;
+pub mod versions;
 
 use mappings::UsmapProvider;
 use oodle::Oodle;
 use std::io;
-use std::{collections::HashMap, fs, io, path::Path};
+use std::{collections::HashMap, fs, path::Path};
 
 use fileprovider::objects::{DirectoryInfo, FileInfo, GameFile, OsGameFile};
 use hex::FromHexError;
