@@ -10,4 +10,4 @@ Under development.
 **Note**: I am learning Rust with the development of this project
 
 ## Contributors
-- [meszmate](https://github.com/meszmate) - Use case & Contact: [Matebot](https://matebot.xyz)
+- [meszmate](https://github.com/meszmate)
